@@ -149,5 +149,4 @@ public:
 
 ## GIF
 
-[!ESP32-C3](https://github.com/user-attachments/assets/7c674d18-982f-4204-a3c0-f8d9c86c339e)
-
+![ESP32C3](https://github.com/user-attachments/assets/0cea0ecc-7887-4271-bb66-b738e96b36b0)
