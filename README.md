@@ -1,26 +1,28 @@
 # ⚙️ ESP32-C3 LED Multitask Blinker with RAII & FreeRTOS
 
-A modern, C++-based project using **RAII (Resource Acquisition Is Initialization)** and **FreeRTOS** on the **ESP32-C3** to blink three LEDs **simultaneously** with different intervals.
+A modern, C++-based project using **RAII (Resource Acquisition Is Initialization)** and **FreeRTOS** on the **ESP32-C3** to blink three LEDs **simultaneously** with different intervals — and a button that **pauses and resumes** the blinking of one LED via a mutex.
 
 - 🔃 3 concurrent blinking tasks using RTOS
 - 🧠 GPIO pin management with C++ RAII pattern
 - ⚡ True multitasking using `xTaskCreatePinnedToCore`
 - 🚀 Super lightweight — no Arduino `loop()` required
+- 🔘 Button controls LED3 blinking by locking/unlocking a mutex
 
-> 🔧 Each LED is controlled in its own RTOS task and uses a dedicated RAII object to manage GPIO pin setup and cleanup safely.
+> 🔧 Each LED is controlled in its own RTOS task and uses a dedicated RAII object to manage GPIO pin setup and cleanup safely. The button task monitors a GPIO input and controls a mutex that gates LED3's blinking.
 
 ---
 
 ## 📋 Features
 
 - 🌈 **Three Independent LEDs**:
-  - LED1 (GPIO2): blinks every 0.5s
-  - LED2 (GPIO3): blinks every 1s
-  - LED3 (GPIO4): blinks every 0.2s
-- 🧱 **RAII-Based GPIO Control**: Each LED is wrapped in a C++ class that ensures the pin is properly initialized and reset.
-- ⚙️ **RTOS Tasks (FreeRTOS)**: Each blinking routine runs in its own FreeRTOS task pinned to core 0.
-- 🔄 **No Delay Blocking**: Uses `vTaskDelay()` for true non-blocking multitasking.
-- ✅ **Safe Resource Cleanup**: Destructor ensures each pin is turned off when the task ends or system restarts.
+  - LED1 (GPIO2): blinks every 0.5s
+  - LED2 (GPIO3): blinks every 1s
+  - LED3 (GPIO4): blinks every 0.2s — can be paused/resumed with a button
+- 🔘 **Button (GPIO5)**: when pressed, stops LED3 blinking by locking a mutex; releasing the button resumes blinking.
+- 🧱 **RAII-Based GPIO Control**: Each LED and the button are wrapped in C++ classes ensuring proper initialization and cleanup.
+- ⚙️ **RTOS Tasks (FreeRTOS)**: Each blinking routine and the button monitoring run in their own FreeRTOS tasks pinned to core 0.
+- 🔄 **No Delay Blocking**: Uses `vTaskDelay()` for non-blocking multitasking.
+- ✅ **Safe Resource Cleanup**: Destructors ensure pins are reset when objects go out of scope.
 
 ---
 
@@ -28,8 +30,9 @@ A modern, C++-based project using **RAII (Resource Acquisition Is Initialization
 
 - A **Seeed Studio ESP32-C3** board or equivalent
 - 3 **LEDs** connected to GPIO2, GPIO3, and GPIO4 with appropriate resistors
+- 1 **button** connected to GPIO5 with pull-up resistor (or use internal pull-up)
 - Arduino IDE or PlatformIO with ESP32 board support
-- Framework: **Arduino**, with access to FreeRTOS (`xTaskCreate`, `vTaskDelay`, etc.)
+- Framework: **Arduino**, with FreeRTOS (`xTaskCreate`, `vTaskDelay`, etc.)
 
 ### Libraries Used:
 - `Arduino.h` (Arduino Core for ESP32)
@@ -39,22 +42,24 @@ A modern, C++-based project using **RAII (Resource Acquisition Is Initialization
 
 ## 🔩 Pin Configuration
 
-| LED   | GPIO Pin |
-|--------|-----------|
-| LED1   | GPIO2     |
-| LED2   | GPIO3     |
-| LED3   | GPIO4     |
+| Device | GPIO Pin |
+|--------|----------|
+| LED1   | GPIO2    |
+| LED2   | GPIO3    |
+| LED3   | GPIO4    |
+| Button | GPIO5    |
 
-> Feel free to change the pin numbers in the `LedRAII` instantiations inside each task.
+> Pins can be changed by editing the `LedRAII` and `ButtonRAII` class instantiations in the tasks.
 
 ---
 
 ## 🧪 Behavior Overview
 
-- On boot, the ESP32-C3 starts 3 FreeRTOS tasks.
-- Each task blinks its LED at a defined interval.
-- Tasks use the RAII class `LedRAII` to safely manage GPIOs.
+- On boot, the ESP32-C3 starts 4 FreeRTOS tasks:
+  - 3 tasks blink LEDs at their own intervals.
+  - 1 task monitors the button state and locks/unlocks a mutex to pause/resume LED3 blinking.
 - The `loop()` function is empty — all execution is handled by the RTOS kernel.
+- LED3 stops blinking immediately when the button is pressed, and resumes when released.
 
 ---
 
@@ -63,15 +68,20 @@ A modern, C++-based project using **RAII (Resource Acquisition Is Initialization
 ```cpp
 class LedRAII {
 public:
-    LedRAII(gpio_num_t pin);   // Initializes GPIO
-    void toggle();             // Toggles LED state
-    void on(), off();          // Controls LED
-    ~LedRAII();                // Resets GPIO to LOW
+    LedRAII(gpio_num_t pin);   // Initializes GPIO pin as output
+    void toggle();             // Toggles LED state
+    ~LedRAII();                // Turns LED off on destruction
+};
+
+class ButtonRAII {
+public:
+    ButtonRAII(gpio_num_t pin);  // Initializes GPIO pin as input with pull-up
+    bool isPressed() const;      // Reads button state (active low)
 };
 ```
 
 ---
 
-## GIF
+## Video
 
-![ESP32C3](https://github.com/user-attachments/assets/0cea0ecc-7887-4271-bb66-b738e96b36b0)
+https://github.com/user-attachments/assets/024e8173-2d12-4639-b704-28607c7e88dc
