@@ -82,6 +82,16 @@ public:
 
 ---
 
-## Video
+## 📽️ Vídeo
 
-https://github.com/user-attachments/assets/024e8173-2d12-4639-b704-28607c7e88dc
+<div align="center">
+
+https://github.com/user-attachments/assets/fc7a1111-801a-4339-8f46-50f2639413fc
+
+</div>
+
+---
+
+## Image
+
+![PINOUT](https://github.com/user-attachments/assets/5ac26256-06c6-40ae-ab29-bd35d11dfe80)
