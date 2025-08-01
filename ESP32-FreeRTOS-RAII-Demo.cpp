@@ -1,7 +1,6 @@
 #include <Arduino.h>
 
-// Simple RAII class to manage an LED on a GPIO pin.
-// It sets the pin mode and ensures the LED is off when the object is destroyed.
+// RAII wrapper for output GPIO (LED)
 class LedRAII {
 private:
     const gpio_num_t gpio;
@@ -9,64 +8,105 @@ private:
 public:
     LedRAII(gpio_num_t pin) : gpio(pin) {
         pinMode(gpio, OUTPUT);
-        digitalWrite(gpio, LOW); // start with LED off
+        digitalWrite(gpio, LOW);
     }
 
     void toggle() {
         digitalWrite(gpio, !digitalRead(gpio));
     }
 
-    void on() {
-        digitalWrite(gpio, HIGH);
-    }
-
-    void off() {
-        digitalWrite(gpio, LOW);
-    }
-
     ~LedRAII() {
-        digitalWrite(gpio, LOW); // make sure LED is off when object is destroyed
+        digitalWrite(gpio, LOW);
     }
 };
 
-// Task to blink LED on GPIO2 every 500ms
-void blinkLed1(void* pvParameters) {
+// RAII wrapper for input GPIO (Button)
+class ButtonRAII {
+private:
+    const gpio_num_t gpio;
+
+public:
+    ButtonRAII(gpio_num_t pin) : gpio(pin) {
+        pinMode(gpio, INPUT_PULLUP); // Button is active-low
+    }
+
+    bool isPressed() const {
+        return digitalRead(gpio) == LOW;
+    }
+};
+
+// Global mutex to control LED3
+SemaphoreHandle_t mutexLed3;
+
+// Task for LED1 — always blinking
+void taskLed1(void* pvParameters) {
     LedRAII led(GPIO_NUM_2);
     while (true) {
         led.toggle();
-        vTaskDelay(pdMS_TO_TICKS(500)); // delay 500 milliseconds
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
-// Task to blink LED on GPIO3 every 1000ms
-void blinkLed2(void* pvParameters) {
+// Task for LED2 — always blinking
+void taskLed2(void* pvParameters) {
     LedRAII led(GPIO_NUM_3);
     while (true) {
         led.toggle();
-        vTaskDelay(pdMS_TO_TICKS(1000)); // delay 1 second
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
-// Task to blink LED on GPIO4 every 200ms
-void blinkLed3(void* pvParameters) {
+// Task for LED3 — blinking only if mutex is available
+void taskLed3(void* pvParameters) {
     LedRAII led(GPIO_NUM_4);
     while (true) {
-        led.toggle();
-        vTaskDelay(pdMS_TO_TICKS(200)); // delay 200 milliseconds
+        if (xSemaphoreTake(mutexLed3, pdMS_TO_TICKS(10)) == pdTRUE) {
+            led.toggle();
+            xSemaphoreGive(mutexLed3);
+        }
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
+
+// Button task — locks/unlocks mutex for LED3
+void taskButton(void* pvParameters) {
+    ButtonRAII button(GPIO_NUM_5);
+    bool locked = false;
+
+    while (true) {
+        if (button.isPressed()) {
+            if (!locked) {
+                xSemaphoreTake(mutexLed3, portMAX_DELAY); // lock
+                locked = true;
+                Serial.println("Button pressed — LED3 paused");
+            }
+        } else {
+            if (locked) {
+                xSemaphoreGive(mutexLed3); // unlock
+                locked = false;
+                Serial.println("Button released — LED3 resumed");
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(50)); // debounce
     }
 }
 
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    Serial.println("Starting RTOS tasks with RAII");
+    Serial.println("Starting FreeRTOS tasks with button controlling LED3");
 
-    // Create three independent tasks, one for each LED
-    xTaskCreatePinnedToCore(blinkLed1, "LED1", 2048, NULL, 1, NULL, 0);
-    xTaskCreatePinnedToCore(blinkLed2, "LED2", 2048, NULL, 1, NULL, 0);
-    xTaskCreatePinnedToCore(blinkLed3, "LED3", 2048, NULL, 1, NULL, 0);
+    // Create and release the mutex
+    mutexLed3 = xSemaphoreCreateMutex();
+    xSemaphoreGive(mutexLed3);
+
+    // Launch tasks
+    xTaskCreatePinnedToCore(taskLed1, "LED1", 2048, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(taskLed2, "LED2", 2048, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(taskLed3, "LED3", 2048, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(taskButton, "Button", 2048, NULL, 1, NULL, 0);
 }
 
 void loop() {
-    // Nothing to do here, everything is handled by the RTOS tasks
+    // Empty — all logic handled by FreeRTOS tasks
 }
