@@ -1,76 +1,75 @@
 # ⚙️ ESP32-C3 LED Multitask Blinker with RAII & FreeRTOS (C++14)
 
-Este é um projeto moderno baseado em **C++14** para ESP32-C3, que utiliza **RAII (Resource Acquisition Is Initialization)** e **FreeRTOS** para fazer três LEDs piscar **simultaneamente**, cada um com um intervalo diferente. Um botão físico permite **pausar e retomar** o piscar de um dos LEDs através de um **mutex**.
+This is a modern C++14-based project for the ESP32-C3 that uses RAII (Resource Acquisition Is Initialization) and FreeRTOS to blink three LEDs simultaneously, each at a different interval. A physical button allows you to pause and resume the blinking of one of the LEDs using a mutex.
 
-- 🔃 3 tarefas concorrentes com FreeRTOS
-- 🧠 Gestão de GPIOs via classes RAII em C++
-- ⚡ Multitarefa real com `xTaskCreatePinnedToCore`
-- 🚀 Sem uso da função `loop()` do Arduino
-- 🔘 Botão físico controla mutex do LED3 (pausar/retomar)
+- 🔃 3 concurrent tasks with FreeRTOS
+- 🧠 GPIO management via RAII classes in C++
+- ⚡ True multitasking with `xTaskCreatePinnedToCore`
+- 🚀 No use of the Arduino `loop()` function
+- 🔘 Physical button controls LED3's mutex (pause/resume)
 
-> 🧰 Cada LED é controlado por uma task separada e encapsulado numa classe RAII que assegura a configuração e libertação segura dos pinos GPIO. O botão é monitorizado por uma task dedicada que controla um mutex para gerir o comportamento do LED3.
-
----
-
-## 📋 Funcionalidades
-
-- 🌈 **Três LEDs independentes**:
-  - **LED1 (GPIO2)**: pisca a cada 0.5 segundos
-  - **LED2 (GPIO3)**: pisca a cada 1 segundo
-  - **LED3 (GPIO4)**: pisca a cada 0.2 segundos — controlado por botão
-- 🔘 **Botão (GPIO5)**:
-  - Pressionado → trava mutex → LED3 para de piscar  
-  - Libertado → liberta mutex → LED3 retoma o piscar
-- 🧱 **RAII para GPIOs**:
-  - `LedRAII` e `ButtonRAII` encapsulam configuração e limpeza automática dos pinos
-- ⚙️ **Multitarefa com FreeRTOS**:
-  - Cada LED e o botão têm a sua própria tarefa (`xTaskCreatePinnedToCore`)
-- ⏱️ **Sem bloqueios com `delay()`**:
-  - Usa `vTaskDelay()` para multitarefa cooperativa
-- ✅ **Limpeza automática**:
-  - LEDs são desligados automaticamente no destrutor (`~LedRAII`)
+> 🧰 Each LED is controlled by a separate task and encapsulated in a RAII class that ensures safe setting and releasing of the GPIO pins. The button is monitored by a dedicated task that controls a mutex to manage LED3's behavior.
 
 ---
 
-## 🛠️ Requisitos
+## 📋 Features
 
-- Placa **ESP32-C3** (ex: Seeed Studio ESP32-C3)
-- 3 **LEDs** + resistores limitadores (220Ω–330Ω)
-- 1 **botão** com resistência pull-up (ou usar `INPUT_PULLUP`)
-- IDE Arduino ou PlatformIO com suporte para ESP32
-- Framework: **Arduino** com suporte a **FreeRTOS**
-
-### 📚 Bibliotecas Utilizadas
-
-- [`Arduino.h`](https://www.arduino.cc/reference/en/) (núcleo base)
-- **FreeRTOS** (incluído por defeito no core ESP32 Arduino)
+- 🌈 **Three independent LEDs**:
+- **LED1 (GPIO2)**: blinks every 0.5 seconds
+- **LED2 (GPIO3)**: blinks every 1 second
+- **LED3 (GPIO4)**: blinks every 0.2 seconds — controlled by a button
+- 🔘 **Button (GPIO5)**:
+- Pressed → locks mutex → LED3 stops blinking
+- Released → releases mutex → LED3 resumes blinking
+- 🧱 **RAII for GPIOs**:
+- `LedRAII` and `ButtonRAII` encapsulate automatic pin configuration and clearing
+- ⚙️ **Multitasking with FreeRTOS**:
+- Each LED and button has its own task (`xTaskCreatePinnedToCore`)
+- ⏱️ **No crashes with `delay()`**:
+- Uses `vTaskDelay()` for cooperative multitasking
+- ✅ **Automatic cleanup**:
+- LEDs are automatically turned off in the destructor (`~LedRAII`)
 
 ---
 
-## 🧭 Mapa de Pinos
+## 🛠️ Requirements
 
-| Dispositivo | GPIO |
+- **ESP32-C3** board (e.g., Seeed Studio ESP32-C3)
+- 3 **LEDs** + limiting resistors (220Ω–330Ω)
+- 1 **button** with pull-up resistor (or use `INPUT_PULLUP`)
+- Arduino or PlatformIO IDE with ESP32 support
+- Framework: **Arduino** with **FreeRTOS** support
+
+### 📚 Libraries Used
+
+- [`Arduino.h`](https://www.arduino.cc/reference/en/) (base core)
+- **FreeRTOS** (included by default in the ESP32 Arduino core)
+
+---
+
+## 🧭 Pin Map
+
+| Device | GPIO |
 |-------------|------|
-| LED1        | 2    |
-| LED2        | 3    |
-| LED3        | 4    |
-| Botão       | 5    |
+| LED1 | 2 |
+| LED2 | 3 |
+| LED3 | 4 |
+| Button | 5 |
 
-> Para alterar os pinos, modifica as instâncias das classes `LedRAII` e `ButtonRAII` nas tarefas correspondentes.
-
----
-
-## 🔄 Funcionamento Geral
-
-- Ao iniciar, são criadas 4 tarefas FreeRTOS:
-  - 3 tarefas piscam LEDs com intervalos diferentes
-  - 1 tarefa lê o botão e trava/liberta o mutex associado ao LED3
-- O LED3 para de piscar **imediatamente** ao pressionar o botão, e retoma quando o botão é libertado.
-- A função `loop()` está vazia — tudo corre via tarefas FreeRTOS.
+> To change the pins, you modify the instances of the `LedRAII` and `ButtonRAII` classes in the corresponding tasks.
 
 ---
 
-## 📦 Estrutura do Código
+## 🔄 General Operation
+
+- At startup, 4 FreeRTOS tasks are created:
+- 3 tasks blink LEDs at different intervals
+- 1 task reads the button and locks/releases the mutex associated with LED3
+- LED3 stops blinking **immediately** when the button is pressed, and resumes blinking when the button is released.
+- The `loop()` function is empty — everything runs via FreeRTOS tasks.
+
+--
+## 📦 Code Structure
 
 ```cpp
 class LedRAII {
@@ -99,6 +98,6 @@ https://github.com/user-attachments/assets/fc7a1111-801a-4339-8f46-50f2639413fc
 
 ---
 
-## Image
+## 🖼️ Image
 
 ![PINOUT](https://github.com/user-attachments/assets/5ac26256-06c6-40ae-ab29-bd35d11dfe80)
