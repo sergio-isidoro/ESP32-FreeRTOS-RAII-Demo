@@ -1,4 +1,4 @@
-# ⚙️ ESP32-C3 LED Multitask Blinker with RAII & FreeRTOS (C++14)
+# ESP32-C3 LED Multitask Blinker with RAII & FreeRTOS (C++14)
 
 This is a modern C++14-based project for the ESP32-C3 that uses RAII (Resource Acquisition Is Initialization) and FreeRTOS to blink three LEDs simultaneously, each at a different interval. A physical button allows you to pause and resume the blinking of one of the LEDs using a mutex.
 
